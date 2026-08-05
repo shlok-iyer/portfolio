@@ -125,10 +125,21 @@ body {
 }
 
 /* ---------- the sheet frame ----------
-   Inset 8px on phones, 12px from 640px up. */
+   Inset 8px on phones, 12px from 640px up. Below 768px, ChatDock renders
+   as an edge-to-edge fixed bar rather than a corner button (see its own
+   md: breakpoint) — sized absolutely off this frame's own positioned
+   ancestor (<main>), the frame's bottom edge would otherwise land inside
+   that bar's reserved padding, i.e. permanently hidden under it no matter
+   how far the page scrolls. Below 768px the frame's bottom is pulled up
+   by the same amount every page already reserves there
+   (pb-[calc(88px+env(safe-area-inset-bottom))]) so the border always
+   clears the bar; at 768px and up, where the bar shrinks to a corner
+   button that doesn't span the width, it goes back to matching the other
+   three sides. */
 .sheet-frame {
   position: absolute;
   inset: 8px;
+  bottom: calc(88px + env(safe-area-inset-bottom));
   border: 1px solid var(--color-ink);
   pointer-events: none;
 }
@@ -136,6 +147,13 @@ body {
 @media (min-width: 640px) {
   .sheet-frame {
     inset: 12px;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 768px) {
+  .sheet-frame {
+    bottom: 12px;
   }
 }
 
