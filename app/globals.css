@@ -4,8 +4,11 @@
    BUILD SHEET — design tokens
    The site is an engineering drawing set. Every token below is
    referenced by name in the design spec; don't introduce ad-hoc
-   colours. The single spot colour (yellow) is reserved for
-   "live/active" state and nothing else.
+   colours. Each nav card owns one accent (set via NavCard's `accent`
+   prop) that colours its pixel LEDs AND its leader line — cyan for
+   My projects, green for Experience, red for Contact me, yellow for
+   Ask me anything. Orange remains the default/background-glyph
+   colour. Gold is reserved for the pixel-border comet.
    ============================================================ */
 @theme {
   --color-paper: #e3e1d8; /* concrete/drafting grey — the sheet */
@@ -16,11 +19,41 @@
   --color-rule: #a8a69b; /* hairlines, dividers */
   --color-blue: #1b4d8f; /* drafting blue — primary accent */
   --color-blueink: #b9cbe4; /* annotations on blue */
-  --color-yellow: #e8e24a; /* SPOT COLOUR — live state only */
+  --color-yellow: #e8e24a; /* SPOT COLOUR — live state + Ask-me-anything accent */
+  --color-orange: #d9541f; /* SPOT COLOUR — background glyph + default accent */
+  --color-gold: #c9a227; /* SPOT COLOUR — pixel-border comet */
+  --color-red: #d1342b; /* SPOT COLOUR — pixel-border comet + Contact-me accent */
+  --color-cyan: #0891b2; /* SPOT COLOUR — My-projects accent */
+  --color-green: #1f6e42; /* SPOT COLOUR — Experience accent */
+  --color-plate: #d6d4ca; /* the photo placeholder's own fill */
 
   --font-display: var(--font-archivo-black), "Arial Black", Impact, sans-serif;
   --font-body: var(--font-public-sans), system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, Consolas, monospace;
+  --font-pixel: var(--font-press-start), "Courier New", monospace;
+}
+
+/* ---------- dark mode ----------
+   Toggled by ThemeToggle adding/removing .dark on <html> (see
+   app/layout.tsx's blocking init script). Every colour in the site
+   flows through one of these tokens, so redefining them here is the
+   entire theme — no component-level dark: overrides anywhere. */
+:root.dark {
+  --color-paper: #14171c;
+  --color-card: #1c2029;
+  --color-ink: #eceae3;
+  --color-body: #b8b6ac;
+  --color-annot: #8b8a82;
+  --color-rule: #3a3e46;
+  --color-blue: #5b8fd6;
+  --color-blueink: #dce8f7;
+  --color-yellow: #f0ea6a;
+  --color-orange: #f2703a;
+  --color-gold: #e0b93a;
+  --color-red: #e8493d;
+  --color-cyan: #22b8d6;
+  --color-green: #2f9760;
+  --color-plate: #262b35;
 }
 
 /* ---------- base ---------- */
@@ -32,11 +65,23 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-body);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
   /* The drafting grid. 16px on phones so density reads correctly at
-     small size; 24px from 640px up. */
+     small size; 24px from 640px up. Mixed off --color-ink rather than a
+     fixed hex so it's a dark grid on light paper AND a light grid on
+     dark paper, automatically, in lockstep with the current theme. */
   background-image:
-    linear-gradient(#15181b0d 1px, transparent 1px),
-    linear-gradient(90deg, #15181b0d 1px, transparent 1px);
+    linear-gradient(
+      color-mix(in srgb, var(--color-ink) 5%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-ink) 5%, transparent) 1px,
+      transparent 1px
+    );
   background-size: 16px 16px;
 }
 
@@ -54,7 +99,10 @@ body {
 
 ::selection {
   background: var(--color-yellow);
-  color: var(--color-ink);
+  /* Fixed, not var(--color-ink) — the yellow stays bright in both themes,
+     so selected text needs to stay dark in both too, not flip to the
+     near-white dark-mode ink and disappear into it. */
+  color: #15181b;
 }
 
 /* ---------- typography floors ----------
@@ -92,11 +140,17 @@ body {
 /* ---------- raised paper card ----------
    Hard offset shadow, no blur. Present by DEFAULT — never
    hover-revealed, because hover does not exist on touch. Presses in
-   on :active so touch gets real feedback. */
+   on :active so touch gets real feedback.
+
+   Every transform below is built on top of --drag-x/--drag-y rather
+   than replacing translate() outright, so a card that's been dragged
+   keeps its hover-lift and press-in micro-interactions instead of an
+   inline drag transform silently overriding them. */
 .paper {
   background: var(--color-card);
   border: 1px solid var(--color-ink);
   box-shadow: 3px 3px 0 var(--color-ink);
+  transform: translate(var(--drag-x, 0px), var(--drag-y, 0px));
   transition:
     box-shadow 120ms ease,
     transform 120ms ease;
@@ -104,26 +158,84 @@ body {
 
 .paper:active {
   box-shadow: 1px 1px 0 var(--color-ink);
-  transform: translate(2px, 2px);
+  transform: translate(
+    calc(var(--drag-x, 0px) + 2px),
+    calc(var(--drag-y, 0px) + 2px)
+  );
 }
 
 @media (hover: hover) {
   .paper:hover {
     box-shadow: 5px 5px 0 var(--color-ink);
-    transform: translate(-1px, -1px);
+    transform: translate(
+      calc(var(--drag-x, 0px) - 1px),
+      calc(var(--drag-y, 0px) - 1px)
+    );
   }
   /* :active must still win over :hover on pointer devices */
   .paper:active {
     box-shadow: 1px 1px 0 var(--color-ink);
-    transform: translate(2px, 2px);
+    transform: translate(
+      calc(var(--drag-x, 0px) + 2px),
+      calc(var(--drag-y, 0px) + 2px)
+    );
   }
 }
 
+/* ---------- drag to reposition ----------
+   Any width, mouse or touch — the cards can be picked up and dropped
+   anywhere; LeaderLines re-measures on every frame of movement, so the
+   wires just follow wherever a card actually is. Below lg the card's
+   normal-flow slot stays reserved while it's lifted (transform doesn't
+   pull it out of flow the way lg's position:absolute does) — that's
+   the same "picked up, original spot still visible" read most drag
+   interactions use, not a layout bug. touch-action: none is what stops
+   a touch drag from being read as a page scroll instead. */
+.draggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.draggable.dragging {
+  cursor: grabbing;
+  z-index: 20;
+  transition: none;
+  box-shadow: 6px 6px 0 var(--color-ink);
+}
+
+/* The AMA card's fill. Written here (rather than relying on Tailwind's
+   bg-blue utility) because Tailwind v4 emits utilities inside @layer,
+   and unlayered author CSS like .paper above always wins a cascade
+   conflict over layered rules regardless of source order — bg-blue's
+   background-color was silently losing to .paper's background. */
+.paper--blue {
+  background: var(--color-blue);
+}
+
+/* The AMA card's sub-label. Same unlayered-vs-Tailwind-layer conflict as
+   .paper--blue above — .u-mono's colour is plain author CSS and always
+   beats the layered text-card utility, so this needs its own rule too. */
+.sub--blue {
+  color: var(--color-card);
+  font-weight: 700;
+}
+
+.sheet-ref--blue {
+  color: var(--color-blueink);
+  opacity: 0.7;
+}
+
 /* ---------- leader lines ----------
-   The signature element. Drawn on load, then static. */
+   The signature element. Drawn on load, then static. Traced in the
+   circuit orange, with a faint glow so the diagram reads as live
+   wiring rather than drafted rule lines. */
 .leader-path {
   stroke-dasharray: var(--len);
   stroke-dashoffset: var(--len);
+  filter: drop-shadow(
+    0 0 2px color-mix(in srgb, var(--leader-color, var(--color-orange)) 70%, transparent)
+  );
   animation: draw 620ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
   animation-delay: var(--delay, 0ms);
 }
@@ -152,6 +264,247 @@ body {
   to {
     opacity: 1;
   }
+}
+
+/* ---------- background pixel glyph ----------
+   The signature backdrop: an oversized "<>" set in a pixel typeface,
+   turned on its side so it runs the full height of the sheet behind
+   the diagram. Decorative only — kept faint enough to never compete
+   with type. */
+.pixel-glyph {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pixel-glyph-frame {
+  /* A fixed anchor box, positioned independently of the glyph's own text
+     metrics. The span inside is centred on this box's centre point and
+     then rotated in place — decoupling "where" from "how wide the
+     unrotated line happens to be". Sized tall on purpose: the nav-card
+     cluster will always cover its middle stretch, so it has to clear
+     well past the cards on both ends to still read as running the
+     sheet's full height. */
+  position: absolute;
+  top: 0;
+  right: 24px;
+  bottom: 0;
+  width: clamp(80px, 15vw, 240px);
+}
+
+.pixel-glyph-frame span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(90deg);
+  font-family: var(--font-pixel);
+  font-size: clamp(80px, 15vw, 240px);
+  line-height: 1;
+  letter-spacing: 0.65em;
+  white-space: nowrap;
+  color: var(--color-orange);
+  opacity: 0.16;
+}
+
+/* ---------- semicolon glyph ----------
+   The photo caption's own small version of the same trick: a pixel ";"
+   stamped in transparent drafting blue, upright rather than rotated
+   since this block is short and wide, not a full-height edge. */
+.semicolon-glyph {
+  position: absolute;
+  top: 50%;
+  right: -18px;
+  transform: translateY(-50%);
+  z-index: -1;
+  pointer-events: none;
+  width: 90px;
+  height: auto;
+  fill: var(--color-blue);
+  opacity: 0.18;
+  shape-rendering: crispEdges;
+}
+
+/* ---------- pixel LEDs ----------
+   Solder-pad markers at each nav card's corners, echoing the photo
+   plate's registration marks. Idle: a slow standby blink. Hovered:
+   the whole board wakes up. */
+.pixel-led {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: var(--card-accent, var(--color-orange));
+  animation: pixel-blink 2.6s ease-in-out infinite;
+  animation-delay: var(--led-delay, 0ms);
+}
+
+@keyframes pixel-blink {
+  0%,
+  100% {
+    opacity: 0.35;
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 3px 0.5px
+      color-mix(in srgb, var(--card-accent, var(--color-orange)) 70%, transparent);
+  }
+}
+
+@media (hover: hover) {
+  .paper:hover .pixel-led {
+    animation-duration: 700ms;
+  }
+}
+
+/* Explicit accent classes, one per card. NavCard sets these by name from
+   its `accent` prop. Written statically (rather than only reached through
+   the JS template literal that builds --card-accent) so Tailwind's build
+   never tree-shakes the underlying colour tokens as "unused". */
+.accent-orange {
+  --card-accent: var(--color-orange);
+}
+.accent-cyan {
+  --card-accent: var(--color-cyan);
+}
+.accent-green {
+  --card-accent: var(--color-green);
+}
+.accent-red {
+  --card-accent: var(--color-red);
+}
+.accent-yellow {
+  --card-accent: var(--color-yellow);
+}
+
+/* ---------- circuit badges ----------
+   Outlined chips in the same orange as the rest of the circuit motif —
+   the sheet number and the byline get stamped like labelled components
+   on the board, instead of sitting as plain type. */
+.badge-chip {
+  display: inline-block;
+  color: var(--color-ink);
+  padding: 4px 10px;
+}
+
+.badge-name {
+  padding: 0.15em 0.35em;
+}
+
+/* ---------- pixel border ----------
+   A solid black outline — same ink border every other box on the
+   sheet uses — plus a glowing gold "comet" segment that travels the
+   perimeter, clockwise then back, instead of a static rule. The
+   0–100 viewBox means the path length is always 392 user units
+   regardless of the box's real size, so the dash math below never
+   needs to change. */
+.pixel-border-base {
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.pixel-border-comet {
+  fill: none;
+  stroke: var(--color-gold);
+  stroke-width: 4;
+  stroke-linecap: square;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--color-gold) 80%, transparent));
+  stroke-dasharray: 48 344;
+  animation: pixel-border-travel 5.5s linear infinite alternate;
+}
+
+@keyframes pixel-border-travel {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -392;
+  }
+}
+
+/* Compact variant for chips — a shorter, thinner comet so it doesn't
+   swallow the whole edge of a small box. */
+.pixel-border--sm .pixel-border-comet {
+  stroke-width: 3;
+  stroke-dasharray: 16 376;
+}
+
+/* Red variant — the name box's comet, distinct from the gold used
+   everywhere else PixelBorder appears. */
+.pixel-border--red .pixel-border-comet {
+  stroke: var(--color-red);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--color-red) 80%, transparent));
+}
+
+/* ---------- router glyph ----------
+   The node the diagram routes through. Desktop-only — the compact
+   layouts keep the simpler direct photo-to-card lines. */
+.router-glyph {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .router-glyph {
+    display: block;
+  }
+}
+
+/* Themed off --color-ink rather than a standalone prefers-color-scheme
+   swap: the page itself has no dark background yet, so flipping the
+   glyph to a light fill on its own just made it vanish into the still-
+   light page. Once the site gets a real dark theme, redefining
+   --color-ink (or a .dark override) for that context carries the router
+   along with everything else automatically — that's what makes this
+   "dark-mode compatible" without a mismatched override today. */
+.router-body {
+  fill: var(--color-ink);
+}
+
+/* ---------- theme toggle ----------
+   Sun stays the fixed spot yellow. The moon has no colour rule of its
+   own on purpose — it's plain --color-ink, so it goes black-on-cream in
+   light mode and white-on-charcoal in dark mode the instant that palette
+   exists, with zero extra logic here.
+
+   One fixed vertical offset at every width, not just below lg: every
+   sub-page's top row (SheetFrame's eyebrow + back-link — a 44px touch
+   target starting at sm:'s pt-9, so its bottom edge is a fixed 80px
+   regardless of viewport) runs close enough to the sheet's right edge,
+   at desktop widths too, that a tight top-right corner still collided
+   with it there. 92px clears that with room to spare everywhere,
+   including the home page's shorter Sheet A-0 chip. */
+.theme-toggle {
+  position: fixed;
+  top: 92px;
+  right: 12px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+@media (min-width: 1024px) {
+  .theme-toggle {
+    right: 20px;
+  }
+}
+
+.theme-toggle-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.theme-toggle-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--color-rule);
 }
 
 /* ---------- reduced motion governs everything ---------- */
