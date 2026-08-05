@@ -43,6 +43,8 @@ yarn-error.log*
 # (see README / ask Shlok how the current deploy gets it).
 /portfolio-image.jpg
 /public/portfolio-image.jpg
+/Shlok_s_Resume_Stripe.pdf
+/public/shlok-iyer-resume.pdf
 
 # typescript
 *.tsbuildinfo
