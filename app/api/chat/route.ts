@@ -64,6 +64,20 @@ function describe(err: unknown): unknown {
   return err;
 }
 
+/* Usage is not reported on one fixed event: step.delta carries a running total
+   in metadata, step.stop carries a final `usage`, and interaction.completed
+   carries it on the interaction. Read whichever is present so the cache signal
+   below is never silently null. */
+function usageFrom(event: unknown): unknown {
+  if (!event || typeof event !== "object") return null;
+  const e = event as {
+    usage?: unknown;
+    metadata?: { total_usage?: unknown };
+    interaction?: { usage?: unknown };
+  };
+  return e.usage ?? e.interaction?.usage ?? e.metadata?.total_usage ?? null;
+}
+
 export async function POST(req: Request) {
   if (!process.env.GEMINI_API_KEY) {
     return bad(503, "The chat isn't configured right now. Email me instead.");
@@ -115,11 +129,22 @@ export async function POST(req: Request) {
     return bad(400, "Expected a user message.");
   }
 
-  /* Gemini calls the assistant side "model", not "assistant". */
-  const input = messages.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    content: m.content,
-  }));
+  /* The Interactions API takes a "step list", not a list of role/content turns.
+     The SDK's InteractionsInput type also permits the turn form
+     ({role, content}), but this API version rejects it at runtime with
+     "use step_list input format instead of turn_list" — so the permissive type
+     is not a guide to what the server accepts. */
+  const input = messages.map((m) =>
+    m.role === "assistant"
+      ? {
+          type: "model_output" as const,
+          content: [{ type: "text" as const, text: m.content }],
+        }
+      : {
+          type: "user_input" as const,
+          content: [{ type: "text" as const, text: m.content }],
+        },
+  );
 
   try {
     const stream = await getClient().interactions.create({
@@ -131,9 +156,13 @@ export async function POST(req: Request) {
       system_instruction: SYSTEM_PROMPT,
       generation_config: {
         max_output_tokens: 1024,
-        /* Latency lever. Raise to MEDIUM if answers get sloppy about the
+        /* Lowercase is required — the API rejects "LOW". The SDK's type is
+           `"minimal" | "low" | "medium" | "high" | (string & {})`, and that
+           trailing `(string & {})` means TypeScript accepts any string, so a
+           wrong case compiles fine and only fails at runtime.
+           Latency lever: raise to "medium" if answers get sloppy about the
            "don't invent anything" rule. */
-        thinking_level: "LOW",
+        thinking_level: "low",
       },
       input,
       stream: true,
@@ -153,12 +182,14 @@ export async function POST(req: Request) {
       for (;;) {
         const { value, done } = await iterator.next();
         if (done) break;
-        if (value.event_type === "step.delta") {
-          if (value.metadata?.total_usage) usage = value.metadata.total_usage;
-          if (value.delta.type === "text" && value.delta.text) {
-            firstText = value.delta.text;
-            break;
-          }
+        usage = usageFrom(value) ?? usage;
+        if (
+          value.event_type === "step.delta" &&
+          value.delta.type === "text" &&
+          value.delta.text
+        ) {
+          firstText = value.delta.text;
+          break;
         }
       }
     } catch (err) {
@@ -175,11 +206,13 @@ export async function POST(req: Request) {
           for (;;) {
             const { value, done } = await iterator.next();
             if (done) break;
-            if (value.event_type === "step.delta") {
-              if (value.metadata?.total_usage) usage = value.metadata.total_usage;
-              if (value.delta.type === "text" && value.delta.text) {
-                controller.enqueue(encoder.encode(value.delta.text));
-              }
+            usage = usageFrom(value) ?? usage;
+            if (
+              value.event_type === "step.delta" &&
+              value.delta.type === "text" &&
+              value.delta.text
+            ) {
+              controller.enqueue(encoder.encode(value.delta.text));
             }
           }
 
