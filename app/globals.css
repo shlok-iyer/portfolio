@@ -1,26 +1,173 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   BUILD SHEET — design tokens
+   The site is an engineering drawing set. Every token below is
+   referenced by name in the design spec; don't introduce ad-hoc
+   colours. The single spot colour (yellow) is reserved for
+   "live/active" state and nothing else.
+   ============================================================ */
+@theme {
+  --color-paper: #e3e1d8; /* concrete/drafting grey — the sheet */
+  --color-card: #f2f1eb; /* raised paper: buttons, panels */
+  --color-ink: #15181b; /* all type and rules */
+  --color-body: #3a3831; /* secondary prose */
+  --color-annot: #5c5a50; /* mono annotations, captions */
+  --color-rule: #a8a69b; /* hairlines, dividers */
+  --color-blue: #1b4d8f; /* drafting blue — primary accent */
+  --color-blueink: #b9cbe4; /* annotations on blue */
+  --color-yellow: #e8e24a; /* SPOT COLOUR — live state only */
+
+  --font-display: var(--font-archivo-black), "Arial Black", Impact, sans-serif;
+  --font-body: var(--font-public-sans), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, Consolas, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ---------- base ---------- */
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  /* The drafting grid. 16px on phones so density reads correctly at
+     small size; 24px from 640px up. */
+  background-image:
+    linear-gradient(#15181b0d 1px, transparent 1px),
+    linear-gradient(90deg, #15181b0d 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+@media (min-width: 640px) {
+  body {
+    background-size: 24px 24px;
+  }
+}
+
+/* Focus is always visible, always ink. Never removed. */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-yellow);
+  color: var(--color-ink);
+}
+
+/* ---------- typography floors ----------
+   Mono annotations never render below 10.5px, body never below 14px,
+   at any breakpoint. */
+.u-mono {
+  font-family: var(--font-mono);
+  font-size: max(10.5px, 0.66rem);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-annot);
+}
+
+.u-body {
+  font-size: max(14px, 0.875rem);
+  line-height: 1.65;
+  color: var(--color-body);
+}
+
+/* ---------- the sheet frame ----------
+   Inset 8px on phones, 12px from 640px up. */
+.sheet-frame {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid var(--color-ink);
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .sheet-frame {
+    inset: 12px;
+  }
+}
+
+/* ---------- raised paper card ----------
+   Hard offset shadow, no blur. Present by DEFAULT — never
+   hover-revealed, because hover does not exist on touch. Presses in
+   on :active so touch gets real feedback. */
+.paper {
+  background: var(--color-card);
+  border: 1px solid var(--color-ink);
+  box-shadow: 3px 3px 0 var(--color-ink);
+  transition:
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.paper:active {
+  box-shadow: 1px 1px 0 var(--color-ink);
+  transform: translate(2px, 2px);
+}
+
+@media (hover: hover) {
+  .paper:hover {
+    box-shadow: 5px 5px 0 var(--color-ink);
+    transform: translate(-1px, -1px);
+  }
+  /* :active must still win over :hover on pointer devices */
+  .paper:active {
+    box-shadow: 1px 1px 0 var(--color-ink);
+    transform: translate(2px, 2px);
+  }
+}
+
+/* ---------- leader lines ----------
+   The signature element. Drawn on load, then static. */
+.leader-path {
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: draw 620ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Shorter draw on phones — a long animation between tap and content
+   is friction, not delight. */
+@media (max-width: 639px) {
+  .leader-path {
+    animation-duration: 320ms;
+  }
+}
+
+.leader-dot {
+  opacity: 0;
+  animation: pop 200ms ease forwards;
+  animation-delay: var(--dot-delay, 0ms);
+}
+
+@keyframes pop {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- reduced motion governs everything ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .leader-path {
+    stroke-dashoffset: 0;
+  }
+  .leader-dot {
+    opacity: 1;
+  }
 }
