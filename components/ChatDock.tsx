@@ -21,12 +21,15 @@ export default function ChatDock() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  /* Sheet A-5 IS the chat, so the dock hides there. Deriving `showPanel`
+     rather than resetting state in an effect matters: the scroll lock below
+     keys on this, so navigating to A-5 with the panel open still unlocks the
+     body. Keying it on `open` alone would leave the page locked. */
+  const hidden = pathname === "/ama";
+  const showPanel = open && !hidden;
 
   useEffect(() => {
-    if (!open) return;
+    if (!showPanel) return;
 
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -43,11 +46,11 @@ export default function ChatDock() {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [showPanel]);
 
-  if (pathname === "/ama") return null;
+  if (hidden) return null;
 
-  if (!open) {
+  if (!showPanel) {
     return (
       <button
         type="button"
