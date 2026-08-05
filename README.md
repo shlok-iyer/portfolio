@@ -6,7 +6,7 @@ hairline leader lines running from the photo to each nav destination.
 
 Sheets: `A-0` Cover · `A-2` Projects · `A-3` Experience · `A-4` Contact · `A-5` Ask me anything.
 
-Next.js 16 (App Router) · React 19 · Tailwind v4 · Anthropic SDK. Deploys to Vercel.
+Next.js 16 (App Router) · React 19 · Tailwind v4 · Google Gen AI SDK (Gemini). Deploys to Vercel.
 
 ---
 
@@ -50,19 +50,20 @@ they are the same data. Editing the site means editing that one file.
 
 ### Don't break the prompt cache
 
-The serialised profile is the cached prefix of every chat request (Anthropic
-prompt caching, ephemeral breakpoint). Anything that varies per request — a
-timestamp, a shuffled key order, a random id — silently kills the cache and the
-bot gets slower and ~10× more expensive with no error.
+The serialised profile is the prefix of every chat request. Gemini caches
+implicitly — there's no breakpoint to set — but it still keys on a byte-stable
+prefix. Anything that varies per request (a timestamp, a shuffled key order, a
+random id) silently kills the cache: the bot gets slower and more expensive,
+with no error to tell you.
 
 The route logs usage on every reply:
 
 ```
-[ama] usage { input, output, cache_write, cache_read, stop }
+[ama] usage { total_input_tokens, total_output_tokens, total_cached_tokens, ... }
 ```
 
-**If `cache_read` stays 0 across consecutive requests, the cache is dead.** Look
-for non-determinism in `systemPrompt.ts` first.
+**If `total_cached_tokens` stays 0 across consecutive requests, the cache is
+dead.** Look for non-determinism in `systemPrompt.ts` first.
 
 ---
 
@@ -70,9 +71,13 @@ for non-determinism in `systemPrompt.ts` first.
 
 **No RAG, no vector DB, no LangChain.** The whole corpus is a few thousand
 tokens and fits in context on every request, so retrieval would add latency and
-a service to maintain in exchange for nothing. The profile goes in the system
-block behind a cache breakpoint instead. (Same call Shlok made on the YouTube
-Transcript Analyzer: the transcript fit the context window, so RAG got skipped.)
+a service to maintain in exchange for nothing. The profile goes in
+`system_instruction` instead. (Same call Shlok made on the YouTube Transcript
+Analyzer: the transcript fit the context window, so RAG got skipped.)
+
+**The chat is stateless.** `store: false` means Google keeps no copy of visitor
+conversations — the full history is sent each request and nothing is retained
+server-side. The SDK's default is `true`.
 
 **The site survives the chat being down.** All four content sheets are
 prerendered static and served from the CDN. If the API key is wrong, Anthropic
@@ -114,7 +119,7 @@ Nothing is hover-revealed — hover doesn't exist on touch. All tap targets ≥4
 ## Deploy (Vercel)
 
 1. Push to GitHub, import the repo at vercel.com.
-2. Set env vars from `.env.example`: `ANTHROPIC_API_KEY`,
+2. Set env vars from `.env.example`: `GEMINI_API_KEY`,
    `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`.
 3. `vercel.json` pins the chat function to `iad1` — near Anthropic's API rather
    than near the visitor, because time-to-first-token is dominated by the model
@@ -124,6 +129,10 @@ Nothing is hover-revealed — hover doesn't exist on touch. All tap targets ≥4
 **The rate limiter is not optional in production.** The route refuses to serve
 chat if Upstash isn't configured when `NODE_ENV=production` — a public LLM
 endpoint with no limiter is an open invoice. The free tier is enough.
+
+**You don't need a dedicated Redis.** The limiter namespaces every key with an
+`ama:` prefix, so it happily shares one Upstash database with other projects —
+which matters because the free tier only allows one.
 
 Cost is bounded by: 20 messages/hour/IP, a 500-character message cap, 10 turns
 of history, `max_tokens: 1024`, and prompt caching.

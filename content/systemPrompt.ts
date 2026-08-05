@@ -3,10 +3,11 @@ import { profile } from "./profile";
 /**
  * Serialises profile.ts into the chatbot's system prompt.
  *
- * DETERMINISM IS LOAD-BEARING. This string is the cached prefix of every chat
- * request (Anthropic prompt caching, ephemeral breakpoint). If anything varies
- * per request — a timestamp, a shuffled key order, a random id — the cache
- * never hits, and the bot silently costs ~10x more and answers slower.
+ * DETERMINISM IS LOAD-BEARING. This string is the prefix of every chat request.
+ * Gemini caches implicitly — there's no explicit breakpoint to set — but it
+ * still keys on a byte-stable prefix. If anything varies per request (a
+ * timestamp, a shuffled key order, a random id) the cache never hits and the
+ * bot silently costs more and answers slower, with no error to tell you.
  * Never introduce Date.now(), Math.random(), or Object.keys() over a
  * non-literal object here.
  *

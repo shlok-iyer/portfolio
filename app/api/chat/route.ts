@@ -1,28 +1,40 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { SYSTEM_PROMPT } from "@/content/systemPrompt";
 
 /* Region is pinned in vercel.json ("regions": ["iad1"]) rather than here —
    Next 16 deprecated the preferredRegion segment config in favour of
-   platform-level configuration.
-
-   The reasoning is unchanged: put the function near Anthropic's API rather
-   than near the visitor. Time-to-first-token is dominated by the model
-   round-trip, not by the browser→Vercel hop, so US-East beats Mumbai. Worth
-   re-measuring once there's real traffic. */
+   platform-level configuration. */
 export const dynamic = "force-dynamic";
+
+/* gemini-3.6-flash is the current lightweight model and the one Google's own
+   quickstart uses. Swap the string to move up or down the range — nothing else
+   in this file depends on which model it is. */
+const MODEL = "gemini-3.6-flash";
 
 const MAX_MESSAGE_CHARS = 500;
 const MAX_TURNS = 10;
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+/* Constructed lazily, not at module scope. The SDK validates the key when you
+   build the client, so a module-level `new GoogleGenAI()` runs during `next
+   build` (noisy) and, in a deploy where the env var is missing, would throw at
+   import time — taking the route down before the friendly 503 below ever runs.
+   Memoised so we still build it once per warm instance. */
+let client: GoogleGenAI | null = null;
+function getClient() {
+  if (!client) client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  return client;
+}
 
 /* Rate limiting is optional at dev time but the endpoint must not ship without
    it: a public LLM endpoint with no limiter is an open invoice. If Upstash
-   isn't configured we fail closed in production and open in development. */
+   isn't configured we fail closed in production and open in development.
+
+   Keys are namespaced with `prefix`, so this can share one Redis database with
+   other apps — you do not need a dedicated one. */
 const redis =
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
     ? Redis.fromEnv()
@@ -41,8 +53,19 @@ function bad(status: number, message: string) {
   return Response.json({ error: message }, { status });
 }
 
+/* The Gemini SDK hides the useful text on err.body — err.message is only
+   "400 API error occurred: {...}", which tells you nothing. Log the body so a
+   bad key, a wrong model name, or a quota trip is readable in Vercel's logs
+   instead of turning into a debugging session. */
+function describe(err: unknown): unknown {
+  if (err && typeof err === "object" && "body" in err) {
+    return (err as { body: unknown }).body;
+  }
+  return err;
+}
+
 export async function POST(req: Request) {
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return bad(503, "The chat isn't configured right now. Email me instead.");
   }
 
@@ -92,49 +115,54 @@ export async function POST(req: Request) {
     return bad(400, "Expected a user message.");
   }
 
+  /* Gemini calls the assistant side "model", not "assistant". */
+  const input = messages.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    content: m.content,
+  }));
+
   try {
-    const stream = anthropic.messages.stream({
-      model: "claude-opus-5",
-      max_tokens: 1024,
-      /* Adaptive thinking stays ON. Disabling it on Opus 5 is a documented
-         source of <thinking> tags leaking into visible output; effort is the
-         correct latency/cost lever here. */
-      output_config: { effort: "low" },
-      system: [
-        {
-          type: "text",
-          text: SYSTEM_PROMPT,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages,
+    const stream = await getClient().interactions.create({
+      model: MODEL,
+      /* store: false keeps this stateless — we send the whole history each
+         time and Google retains nothing. The default is true, which would
+         persist every visitor's conversation server-side. Not our data to keep. */
+      store: false,
+      system_instruction: SYSTEM_PROMPT,
+      generation_config: {
+        max_output_tokens: 1024,
+        /* Latency lever. Raise to MEDIUM if answers get sloppy about the
+           "don't invent anything" rule. */
+        thinking_level: "LOW",
+      },
+      input,
+      stream: true,
     });
 
     /* Pull events until the FIRST token before returning a Response.
-       Anthropic errors (bad key, overloaded, rate limited) surface on the
-       first read, not at construction. If we streamed immediately, those would
-       land after the headers were already sent — the client would see a dead
-       socket ("Failed to fetch") instead of our fallback card, which is
-       exactly the case graceful degradation exists for. Buying one round-trip
-       here means every pre-token failure is a clean JSON error. */
+       Provider errors (bad key, quota, wrong model name) surface on the first
+       read, not at construction. If we streamed immediately, those would land
+       after the headers were already sent — the client would see a dead socket
+       instead of our fallback card, which is exactly the case graceful
+       degradation exists for. */
     const iterator = stream[Symbol.asyncIterator]();
     let firstText = "";
+    let usage: unknown = null;
 
     try {
       for (;;) {
         const { value, done } = await iterator.next();
         if (done) break;
-        if (
-          value.type === "content_block_delta" &&
-          value.delta.type === "text_delta"
-        ) {
-          firstText = value.delta.text;
-          break;
+        if (value.event_type === "step.delta") {
+          if (value.metadata?.total_usage) usage = value.metadata.total_usage;
+          if (value.delta.type === "text" && value.delta.text) {
+            firstText = value.delta.text;
+            break;
+          }
         }
       }
     } catch (err) {
-      console.error("[ama] model call failed before first token", err);
-      stream.abort();
+      console.error("[ama] model call failed before first token", describe(err));
       return bad(502, "The chat backend didn't respond. Email me instead.");
     }
 
@@ -147,30 +175,25 @@ export async function POST(req: Request) {
           for (;;) {
             const { value, done } = await iterator.next();
             if (done) break;
-            if (
-              value.type === "content_block_delta" &&
-              value.delta.type === "text_delta"
-            ) {
-              controller.enqueue(encoder.encode(value.delta.text));
+            if (value.event_type === "step.delta") {
+              if (value.metadata?.total_usage) usage = value.metadata.total_usage;
+              if (value.delta.type === "text" && value.delta.text) {
+                controller.enqueue(encoder.encode(value.delta.text));
+              }
             }
           }
 
-          const final = await stream.finalMessage();
-          /* Watch this in the logs. If cache_read stays 0 across consecutive
-             requests, something non-deterministic has crept into
-             systemPrompt.ts and the cache is silently dead. */
-          console.log("[ama] usage", {
-            input: final.usage.input_tokens,
-            output: final.usage.output_tokens,
-            cache_write: final.usage.cache_creation_input_tokens,
-            cache_read: final.usage.cache_read_input_tokens,
-            stop: final.stop_reason,
-          });
+          /* Watch total_cached_tokens here. Gemini caches implicitly rather
+             than via an explicit breakpoint, but it still keys on a stable
+             prompt prefix — so if this stays 0 across consecutive requests,
+             something non-deterministic has crept into systemPrompt.ts and the
+             cache is silently dead. */
+          console.log("[ama] usage", usage);
         } catch (err) {
           /* Headers are long gone by now, so there is no status code left to
              send. Finish the message in-band rather than erroring the stream:
              the reader keeps the partial answer and sees why it stopped. */
-          console.error("[ama] stream failed mid-response", err);
+          console.error("[ama] stream failed mid-response", describe(err));
           controller.enqueue(
             encoder.encode(
               "\n\n[The answer was cut off — the connection dropped. Ask again, or email me.]",
@@ -181,7 +204,7 @@ export async function POST(req: Request) {
         }
       },
       cancel() {
-        stream.abort();
+        void iterator.return?.();
       },
     });
 
@@ -193,7 +216,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (err) {
-    console.error("[ama] request failed", err);
+    console.error("[ama] request failed", describe(err));
     return bad(502, "The chat backend didn't respond. Email me instead.");
   }
 }
