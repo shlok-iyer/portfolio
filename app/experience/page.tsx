@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import CometUnderline from "@/components/CometUnderline";
 import SheetFrame from "@/components/SheetFrame";
 import SpecRecord from "@/components/SpecRecord";
 import { profile } from "@/content/profile";
@@ -18,8 +19,9 @@ export const metadata: Metadata = {
 export default function Experience() {
   return (
     <SheetFrame sheet="A-3" title="Experience" scale="2 roles">
-      <h1 className="font-display mt-5 text-[34px] leading-[0.92] tracking-[-0.03em] text-ink sm:mt-6 sm:text-[46px]">
+      <h1 className="relative mt-5 inline-block pb-3 font-mono text-[34px] leading-[0.92] font-bold tracking-tight text-ink uppercase sm:mt-6 sm:text-[46px]">
         EXPERIENCE
+        <CometUnderline />
       </h1>
       <p className="u-body mt-4 max-w-[58ch]">
         Two internships so far. Both were production work — real users, real
@@ -39,11 +41,12 @@ export default function Experience() {
             ]}
             bullets={r.bullets}
             links={r.links ? [...r.links] : undefined}
+            accent={r.org === "Seedling Labs" ? "gold" : "purple"}
           />
         ))}
       </div>
 
-      <h2 className="font-display mt-14 text-[24px] tracking-tight text-ink sm:text-[28px]">
+      <h2 className="font-mono mt-14 text-[24px] font-bold tracking-tight text-ink uppercase sm:text-[28px]">
         EDUCATION
       </h2>
 
@@ -54,7 +57,7 @@ export default function Experience() {
           <div key={e.institution} className="border border-ink bg-card">
             <div className="border-b border-ink px-4 py-3 sm:px-5">
               <p className="u-mono">{e.sheetRef}</p>
-              <p className="mt-1 text-[16px] font-semibold text-ink">
+              <p className="font-mono mt-1 text-[16px] font-bold tracking-tight text-ink uppercase">
                 {e.institution}
               </p>
             </div>
@@ -64,7 +67,13 @@ export default function Experience() {
                 { label: "Period", value: e.period },
                 { label: "Result", value: e.result },
               ].map((row, i, arr) => (
-                <div key={row.label} className="contents">
+                <div
+                  key={row.label}
+                  className={[
+                    "contents",
+                    row.label === "Result" ? "highlight-row" : "",
+                  ].join(" ")}
+                >
                   <dt
                     className={`u-mono px-4 py-2 sm:px-5 ${i < arr.length - 1 ? "border-b border-rule" : ""}`}
                   >
@@ -82,7 +91,7 @@ export default function Experience() {
         ))}
       </div>
 
-      <h2 className="font-display mt-14 text-[24px] tracking-tight text-ink sm:text-[28px]">
+      <h2 className="font-mono mt-14 text-[24px] font-bold tracking-tight text-ink uppercase sm:text-[28px]">
         SKILLS
       </h2>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">

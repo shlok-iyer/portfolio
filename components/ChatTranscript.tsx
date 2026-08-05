@@ -4,10 +4,61 @@ import { useEffect, useRef, useState } from "react";
 import { profile } from "@/content/profile";
 import { useChatStream } from "./useChatStream";
 
+/** Small stroke glyphs, drawn in the site's own square-cap line style
+ * rather than borrowed from an icon set — a briefcase, a bolt, a compass. */
+function IconBriefcase({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="square"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="2.25" y="5.5" width="11.5" height="7.75" />
+      <path d="M6 5.5V4.25a2 2 0 0 1 2-2 2 2 0 0 1 2 2V5.5" />
+      <path d="M2.25 9.25h11.5" />
+    </svg>
+  );
+}
+
+function IconBolt({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M8.7 1.2 3 9.3h4.1l-1 5.5 5.9-8.6H8l1.7-5Z" />
+    </svg>
+  );
+}
+
+function IconCompass({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="square"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="8" cy="8" r="6" />
+      <path d="M10.3 5.7 8.8 8.8 5.7 10.3 7.2 7.2Z" />
+    </svg>
+  );
+}
+
 const SUGGESTIONS = [
-  "What did you do at Seedling Labs?",
-  "How did you cut token usage by 90%?",
-  "What are you looking for next?",
+  { text: "What did you do at Seedling Labs?", Icon: IconBriefcase },
+  { text: "How did you cut token usage by 90%?", Icon: IconBolt },
+  { text: "What are you looking for next?", Icon: IconCompass },
 ];
 
 /**
@@ -49,25 +100,11 @@ export default function ChatTranscript({
         className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4"
       >
         {messages.length === 0 && !error && (
-          <div className="space-y-4">
-            <p className="u-body">
-              Ask me about my work, my projects, or what I&apos;m looking for.
-              I answer from what I&apos;ve actually written down — if I
-              haven&apos;t, I&apos;ll say so.
-            </p>
-            <div className="flex flex-col gap-2">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => void send(s)}
-                  className="paper min-h-[44px] px-3 py-2 text-left text-[14px] text-ink"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="u-body">
+            Ask me about my work, my projects, or what I&apos;m looking for. I
+            answer from what I&apos;ve actually written down — if I
+            haven&apos;t, I&apos;ll say so.
+          </p>
         )}
 
         {messages.map((m, i) =>
@@ -104,6 +141,22 @@ export default function ChatTranscript({
           </div>
         )}
       </div>
+
+      {messages.length === 0 && !error && (
+        <div className="flex shrink-0 flex-wrap gap-2 px-4 pt-3">
+          {SUGGESTIONS.map(({ text, Icon }) => (
+            <button
+              key={text}
+              type="button"
+              onClick={() => void send(text)}
+              className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-rule bg-card px-3.5 py-1.5 text-left text-[13px] leading-snug text-ink transition-colors hover:border-ink"
+            >
+              <Icon className="size-3.5 shrink-0 text-annot" />
+              {text}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form
         onSubmit={submit}

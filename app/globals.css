@@ -25,6 +25,7 @@
   --color-red: #d1342b; /* SPOT COLOUR — pixel-border comet + Contact-me accent */
   --color-cyan: #0891b2; /* SPOT COLOUR — My-projects accent */
   --color-green: #1f6e42; /* SPOT COLOUR — Experience accent */
+  --color-purple: #6a3f96; /* SPOT COLOUR — Sigma-Aldrich record accent */
   --color-plate: #d6d4ca; /* the photo placeholder's own fill */
 
   --font-display: var(--font-archivo-black), "Arial Black", Impact, sans-serif;
@@ -53,6 +54,7 @@
   --color-red: #e8493d;
   --color-cyan: #22b8d6;
   --color-green: #2f9760;
+  --color-purple: #9569c9;
   --color-plate: #262b35;
 }
 
@@ -226,6 +228,85 @@ body {
   opacity: 0.7;
 }
 
+/* ---------- shine card ----------
+   Contact me is the one action every visitor should actually take, so it
+   gets the site's brightest treatment: a solid gold fill (the same move
+   as the AMA card's solid blue) plus a sheen that sweeps across it and an
+   ambient glow that never fully rests — both idle, both slow. The moment
+   a cursor actually lands on it, both snap to a faster tempo, so the card
+   visibly wakes up under the pointer instead of just sitting there lit. */
+.paper--gold {
+  background: var(--color-gold);
+  animation: gold-glow 2.6s ease-in-out infinite;
+}
+
+/* Gold sits at the light end of the palette in both themes (a mid mustard
+   on paper, a bright flare on charcoal), so its text stays a fixed dark
+   ink rather than following --color-ink/--color-card's usual light/dark
+   flip — flipped, it would go pale-on-pale in one theme or the other. */
+.text-on-gold {
+  color: #15181b;
+}
+
+.sub--gold {
+  color: #15181b;
+  font-weight: 700;
+}
+
+.sheet-ref--gold {
+  color: #15181b;
+  opacity: 0.65;
+}
+
+.shine-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 42%,
+    color-mix(in srgb, var(--color-card) 60%, transparent) 50%,
+    transparent 58%
+  );
+  background-size: 240% 100%;
+  background-position: 140% 0;
+  animation: shine-sweep 3.4s ease-in-out infinite;
+}
+
+@keyframes gold-glow {
+  0%,
+  100% {
+    filter: drop-shadow(
+      0 0 3px color-mix(in srgb, var(--color-gold) 50%, transparent)
+    );
+  }
+  50% {
+    filter: drop-shadow(
+      0 0 13px color-mix(in srgb, var(--color-gold) 85%, transparent)
+    );
+  }
+}
+
+@keyframes shine-sweep {
+  0%,
+  30% {
+    background-position: 140% 0;
+  }
+  70%,
+  100% {
+    background-position: -40% 0;
+  }
+}
+
+@media (hover: hover) {
+  .paper--gold:hover {
+    animation-duration: 1s;
+  }
+  .paper--gold:hover .shine-sweep {
+    animation-duration: 1.1s;
+  }
+}
+
 /* ---------- leader lines ----------
    The signature element. Drawn on load, then static. Traced in the
    circuit orange, with a faint glow so the diagram reads as live
@@ -376,6 +457,175 @@ body {
 }
 .accent-yellow {
   --card-accent: var(--color-yellow);
+}
+.accent-gold {
+  --card-accent: var(--color-gold);
+}
+.accent-purple {
+  --card-accent: var(--color-purple);
+}
+
+/* ---------- highlight chip ----------
+   Standout data — a Stack/Period row, the homepage CGPA — gets a coloured
+   wash rather than plain ink. Light mode stays a paper-friendly tint: a
+   faint fill with the accent darkened for contrast, since a solid fill
+   would fight the paper texture. Dark mode inverts to a lit chip: solid
+   accent fill, bold near-white text, so it reads as active rather than
+   printed. Both variants theme off the same --color-* token, so a new
+   accent only ever needs its two color-mix stops here. */
+.highlight-row dt,
+.highlight-row dd {
+  background: color-mix(
+    in srgb,
+    var(--card-accent, var(--color-gold)) 14%,
+    transparent
+  );
+  color: color-mix(in srgb, var(--card-accent, var(--color-gold)) 60%, black);
+  font-weight: 700;
+}
+
+:root.dark .highlight-row dt,
+:root.dark .highlight-row dd {
+  background: var(--card-accent, var(--color-gold));
+  color: #fdfdfb;
+  font-weight: 700;
+}
+
+/* The CGPA chip runs the opposite way from a record's Stack/Period rows on
+   purpose: it's one lone stat, not a whole row of the sheet, so it reads as
+   a stamped badge rather than a washed field. Light mode: a solid gold
+   fill with dark ink, like a foil stamp on paper. Dark mode inverts to a
+   faint tinted fill with bright glowing gold text, so it doesn't turn into
+   a flat block against the dark page. */
+.highlight-chip {
+  display: inline-block;
+  padding: 0.05em 0.45em;
+  border-radius: 3px;
+  font-weight: 700;
+  background: var(--color-gold);
+  color: #15181b;
+}
+
+:root.dark .highlight-chip {
+  background: color-mix(in srgb, var(--color-gold) 16%, transparent);
+  color: color-mix(in srgb, var(--color-gold) 80%, white);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--color-gold) 45%, transparent);
+}
+
+/* ---------- double underline ----------
+   A heading's own "circuit trace": a full-width gold rule with a shorter
+   purple rule painted directly on top, covering the left half of it —
+   two spot colours doing what one plain rule would. Sized off the
+   wrapping inline-block's own text box, not the container, so it always
+   tracks exactly under the glyphs regardless of heading length. */
+.underline-duo {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.16em;
+}
+
+.underline-duo::before,
+.underline-duo::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+}
+
+.underline-duo::before {
+  width: 100%;
+  background: var(--color-gold);
+  filter: drop-shadow(
+    0 0 3px color-mix(in srgb, var(--color-gold) 65%, transparent)
+  );
+}
+
+.underline-duo::after {
+  width: 50%;
+  background: var(--color-purple);
+  filter: drop-shadow(
+    0 0 3px color-mix(in srgb, var(--color-purple) 70%, transparent)
+  );
+}
+
+@media (min-width: 640px) {
+  .underline-duo::before,
+  .underline-duo::after {
+    height: 5px;
+  }
+}
+
+/* ---------- comet underline ----------
+   Contact's own take on the double underline: a static gold base line
+   with a purple comet that actually travels its length, back and forth
+   — CometUnderline.tsx's SVG rendering of the same perimeter-chasing
+   trick PixelBorder runs on the nav cards, laid along a line instead of
+   a box. A 0–100 viewBox stretched by preserveAspectRatio="none" means
+   the path length is always 100 user units regardless of the heading's
+   real width, so the dash math never needs to change. */
+.comet-underline-base {
+  stroke: var(--color-gold);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(
+    0 0 2px color-mix(in srgb, var(--color-gold) 55%, transparent)
+  );
+}
+
+.comet-underline-comet {
+  stroke: var(--color-purple);
+  stroke-width: 3.2;
+  stroke-linecap: square;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(
+    0 0 4px color-mix(in srgb, var(--color-purple) 80%, transparent)
+  );
+  stroke-dasharray: 22 78;
+  animation: comet-underline-travel 3.4s linear infinite alternate;
+}
+
+@keyframes comet-underline-travel {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+/* Forces PixelBorder's own inline-block wrapper (built for chip-sized
+   badges) to behave as a full block when it's wrapping a whole content
+   box instead — unlayered, so it beats the Tailwind utilities already on
+   that element regardless of source order, same trick as .paper--blue. */
+.pixel-border--block {
+  display: block;
+  width: 100%;
+}
+
+/* ---------- glowing link ----------
+   GitHub is the one link that leaves the sheet entirely — the record's
+   own live wire out to the real repo — so it holds a slow, continuous
+   pulse rather than sitting in flat ink like the rest of a record's
+   footer. Never goes fully dark: it breathes between a low ember and a
+   bright flare, on loop. */
+.link-glow {
+  color: var(--color-orange);
+  animation: link-glow-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes link-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    text-shadow: 0 0 2px color-mix(in srgb, var(--color-orange) 35%, transparent);
+  }
+  50% {
+    opacity: 1;
+    text-shadow:
+      0 0 7px color-mix(in srgb, var(--color-orange) 85%, transparent),
+      0 0 2px color-mix(in srgb, var(--color-orange) 60%, transparent);
+  }
 }
 
 /* ---------- circuit badges ----------

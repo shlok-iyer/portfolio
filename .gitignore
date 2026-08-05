@@ -38,6 +38,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# private assets — not meant to be scrapeable from the public repo.
+# Present locally and expected to be uploaded to the host out-of-band
+# (see README / ask Shlok how the current deploy gets it).
+/portfolio-image.jpg
+/public/portfolio-image.jpg
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

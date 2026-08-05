@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ChatTranscript from "@/components/ChatTranscript";
+import CometUnderline from "@/components/CometUnderline";
 import { profile } from "@/content/profile";
 
 export const metadata: Metadata = {
@@ -32,10 +33,11 @@ export default function Ama() {
         </div>
 
         <div className="mt-5 flex shrink-0 items-end justify-between gap-4 border-b border-ink pb-4">
-          <h1 className="font-display text-[30px] leading-[0.9] tracking-[-0.03em] text-ink sm:text-[40px]">
+          <h1 className="relative inline-block pb-3 font-mono text-[30px] leading-[0.9] font-bold tracking-tight text-ink uppercase sm:text-[40px]">
             ASK ME
             <br />
             ANYTHING
+            <CometUnderline />
           </h1>
           <p className="u-mono mb-1 text-right">
             AI trained
