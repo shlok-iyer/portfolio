@@ -11,8 +11,12 @@ type Props = {
   sheetRef: string;
   label: string;
   sub: string;
-  /** The AMA card is the blue one — the one live surface on the sheet. */
-  variant?: "paper" | "blue";
+  /**
+   * The AMA card is the blue one — the one live surface on the sheet.
+   * Contact me is the gold one — a solid shine, not just an accent, since
+   * it's the one click every visitor should actually make.
+   */
+  variant?: "paper" | "blue" | "gold";
   /** Renders the yellow live dot. Yellow appears nowhere else. */
   live?: boolean;
   /** Colours this card's pixel LEDs and its leader line. */
@@ -58,6 +62,7 @@ export default function NavCard({
   className = "",
 }: Props) {
   const blue = variant === "blue";
+  const gold = variant === "gold";
   // Stagger each card's LED blink off its sheet number (A-2, A-3, …) so the
   // cluster reads as one board rather than four cards ticking in lockstep.
   const baseDelay = (parseInt(sheetRef.replace(/\D/g, ""), 10) || 0) * 220;
@@ -266,13 +271,16 @@ export default function NavCard({
         `accent-${accent}`,
         isDragging ? "dragging" : "",
         blue ? "paper--blue items-center text-center" : "",
+        gold ? "paper--gold" : "",
         className,
       ].join(" ")}
     >
+      {gold && <span className="shine-sweep" aria-hidden="true" />}
+
       <span
         className={[
           "u-mono absolute top-1.5 right-2",
-          blue ? "sheet-ref--blue" : "text-rule",
+          blue ? "sheet-ref--blue" : gold ? "sheet-ref--gold" : "text-rule",
         ].join(" ")}
       >
         {sheetRef}
@@ -281,13 +289,18 @@ export default function NavCard({
       <span
         className={[
           "font-mono text-[14px] leading-tight font-bold tracking-tight uppercase sm:text-[15px]",
-          blue ? "text-card" : "text-ink",
+          blue ? "text-card" : gold ? "text-on-gold" : "text-ink",
         ].join(" ")}
       >
         {label}
       </span>
 
-      <span className={["u-mono mt-1", blue ? "sub--blue" : ""].join(" ")}>
+      <span
+        className={[
+          "u-mono mt-1",
+          blue ? "sub--blue" : gold ? "sub--gold" : "",
+        ].join(" ")}
+      >
         {sub}
       </span>
 

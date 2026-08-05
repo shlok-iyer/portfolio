@@ -48,11 +48,16 @@ export const profile = {
     "I build the layer between an idea and the thing that actually runs — FastAPI services, React Native apps, and LLM pipelines that hold up in production for 200+ teachers.",
 
   /**
-   * TODO(shlok): drop your photo at public/shlok.jpg and set this to
-   * "/shlok.jpg". Until then the sheet renders a registration-marked
-   * placeholder in the same footprint, so the layout is already correct.
+   * PORTFOLIO_IMAGE_URL points at UploadThing in production — the raw file
+   * is never committed. Read server-side only (photo is rendered by
+   * PhotoPlate, a server component, so this doesn't need a NEXT_PUBLIC_
+   * prefix — the resolved URL still reaches the browser, just baked into
+   * the rendered HTML rather than the client JS bundle). Locally, with the
+   * env var unset, this falls back to public/portfolio-image.jpg, which is
+   * gitignored but present on disk for dev. See .env.example.
    */
-  photo: null as string | null,
+  photo: (process.env.PORTFOLIO_IMAGE_URL ||
+    "/portfolio-image.jpg") as string | null,
 
   location: "Bengaluru, India",
   email: "shlokiyer2004@gmail.com",
@@ -62,8 +67,8 @@ export const profile = {
     // TODO(shlok): confirm these resolve — taken from the resume's short forms.
     github: "https://github.com/shlok-iyer",
     linkedin: "https://linkedin.com/in/shlok-iyer",
-    /** Drop the PDF at public/shlok-iyer-resume.pdf to enable the download. */
-    resume: "/shlok-iyer-resume.pdf",
+    /** Same UploadThing-with-local-fallback pattern as `photo` above. */
+    resume: process.env.RESUME_PDF_URL || "/shlok-iyer-resume.pdf",
   },
 
   education: [

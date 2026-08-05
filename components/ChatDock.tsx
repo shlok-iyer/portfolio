@@ -83,7 +83,7 @@ export default function ChatDock() {
     >
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-ink px-4 py-3">
         <div>
-          <p className="font-display text-[15px] tracking-tight text-ink">
+          <p className="font-mono text-[15px] font-bold tracking-tight text-ink uppercase">
             ASK ME ANYTHING
           </p>
           <p className="u-mono mt-0.5">Sheet A-5 · AI trained on my resume</p>

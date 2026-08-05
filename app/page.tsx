@@ -37,7 +37,7 @@ export default function Home() {
         <div className="mt-5 sm:mt-6 lg:flex lg:items-start lg:gap-12">
           <PixelBorder className="badge-name" tone="red">
             <h1
-              className="font-display leading-[0.86] tracking-[-0.035em] text-ink"
+              className="font-mono leading-[0.86] font-bold tracking-tight text-ink uppercase"
               style={{ fontSize: "clamp(38px, 13vw, 54px)" }}
             >
               {profile.name.first.toUpperCase()}
@@ -71,6 +71,7 @@ export default function Home() {
                 label="Contact me"
                 sub={`${profile.location} · open to roles`}
                 accent="red"
+                variant="gold"
                 className="lg:absolute lg:top-[190px] lg:left-[335px] lg:min-h-[78px] lg:w-[150px]"
               />
               <NavCard
