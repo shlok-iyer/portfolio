@@ -69,11 +69,29 @@ export default function NavCard({
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
 
-  const applyTransform = (x: number, y: number) => {
+  const applyTransform = (x: number, y: number, instant = false) => {
     const el = linkRef.current;
     if (!el) return;
+    if (!instant) {
+      el.style.setProperty("--drag-x", `${x}px`);
+      el.style.setProperty("--drag-y", `${y}px`);
+      return;
+    }
+    // Used for restoring a position (mount, or a breakpoint crossing),
+    // never for a live drag: .paper's own transform transition would
+    // otherwise animate this jump into place over 120ms, during which
+    // getBoundingClientRect() reports the mid-animation position, not
+    // the final one — and since nothing re-measures once the transition
+    // actually finishes, the leader line was left permanently pointing
+    // at wherever it was measured mid-flight. A live drag doesn't hit
+    // this: .dragging already sets transition: none for its whole
+    // duration, so every frame's measurement is already the true one.
+    const prevTransition = el.style.transition;
+    el.style.transition = "none";
     el.style.setProperty("--drag-x", `${x}px`);
     el.style.setProperty("--drag-y", `${y}px`);
+    void el.offsetHeight; // force layout before re-enabling the transition
+    el.style.transition = prevTransition;
   };
 
   // Restore this card's last dropped position — or, the very first time,
@@ -90,7 +108,7 @@ export default function NavCard({
 
     const settle = () => {
       if (!mq.matches) {
-        applyTransform(0, 0);
+        applyTransform(0, 0, true);
         setDrag({ x: 0, y: 0 });
         window.dispatchEvent(new Event("leaderlines:update"));
         return;
@@ -117,7 +135,7 @@ export default function NavCard({
           // Nothing to do — it'll just scatter again next visit.
         }
       }
-      applyTransform(next.x, next.y);
+      applyTransform(next.x, next.y, true);
       // Syncing from localStorage — a browser-only API the server can't
       // see. SSR has to render the offset-free default, and this is what
       // reconciles the client to the real, remembered value right after
