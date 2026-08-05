@@ -13,7 +13,7 @@ export default function PhotoPlate({ className = "" }: { className?: string }) {
     <figure className={className}>
       <div
         data-leader="anchor"
-        className="relative aspect-[4/5] w-full border border-ink bg-[#d6d4ca]"
+        className="relative aspect-[4/5] w-full border border-ink bg-[var(--color-plate)]"
       >
         {profile.photo ? (
           <Image
@@ -34,12 +34,12 @@ export default function PhotoPlate({ className = "" }: { className?: string }) {
             >
               <path
                 d="M0 0 L100 125 M100 0 L0 125"
-                stroke="#bfbdb2"
+                stroke="var(--color-rule)"
                 strokeWidth="0.5"
                 fill="none"
               />
             </svg>
-            <span className="u-mono absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#d6d4ca] px-1.5 py-1 whitespace-nowrap">
+            <span className="u-mono absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--color-plate)] px-1.5 py-1 whitespace-nowrap">
               Photo · 4:5
             </span>
           </>
@@ -62,7 +62,21 @@ export default function PhotoPlate({ className = "" }: { className?: string }) {
         ))}
       </div>
 
-      <figcaption className="mt-3">
+      <figcaption className="relative mt-3">
+        {/* Hand-built rather than the font's own ";" — at this size the
+            pixel typeface's glyph reads as an ambiguous blob, not a
+            semicolon. A dot and a hooked, curling tail read clearly at
+            any scale. */}
+        <svg
+          className="semicolon-glyph"
+          viewBox="0 0 20 34"
+          aria-hidden="true"
+        >
+          <rect x="7" y="2" width="7" height="7" />
+          <rect x="7" y="13" width="7" height="7" />
+          <rect x="4" y="19" width="6" height="6" />
+          <rect x="1" y="25" width="5" height="5" />
+        </svg>
         <p className="u-mono">
           Fig. 1 — <span className="text-ink">{profile.name.full}</span>
         </p>

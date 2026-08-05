@@ -1,7 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo_Black, Public_Sans, IBM_Plex_Mono } from "next/font/google";
+import {
+  Archivo_Black,
+  Public_Sans,
+  IBM_Plex_Mono,
+  Press_Start_2P,
+} from "next/font/google";
+import Script from "next/script";
 import { profile } from "@/content/profile";
 import ChatDock from "@/components/ChatDock";
+import ThemeToggle from "@/components/ThemeToggle";
 import "./globals.css";
 
 /* Self-hosted at build time by next/font — no runtime request to Google, so
@@ -20,9 +27,18 @@ const publicSans = Public_Sans({
 });
 
 const plexMono = IBM_Plex_Mono({
-  weight: ["400", "500"],
+  weight: ["400", "500", "700"],
   subsets: ["latin"],
   variable: "--font-plex-mono",
+  display: "swap",
+});
+
+/* The background "<>" glyph only — a true pixel-art face so it reads
+   as circuitry, not as decorated body type. */
+const pressStart = Press_Start_2P({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-press-start",
   display: "swap",
 });
 
@@ -50,10 +66,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${archivoBlack.variable} ${publicSans.variable} ${plexMono.variable} antialiased`}
+      className={`${archivoBlack.variable} ${publicSans.variable} ${plexMono.variable} ${pressStart.variable} antialiased`}
+      // The theme-init script below deliberately adds .dark to this
+      // element before React hydrates, so a returning dark-mode visitor
+      // never sees a flash of light mode first — the server, which can't
+      // see localStorage, always renders without it. React would treat
+      // that intentional mismatch as a bug and warn; this tells it not to.
+      suppressHydrationWarning
     >
       <body className="min-h-dvh">
+        {/* Runs before hydration so a returning dark-mode visitor never
+            sees a flash of the light theme first. */}
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`try{if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark')}}catch(e){}`}
+        </Script>
         {children}
+        <ThemeToggle />
         <ChatDock />
       </body>
     </html>
