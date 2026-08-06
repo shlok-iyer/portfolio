@@ -6,6 +6,7 @@ import {
   Press_Start_2P,
 } from "next/font/google";
 import Script from "next/script";
+import { headers } from "next/headers";
 import { profile } from "@/content/profile";
 import ChatDock from "@/components/ChatDock";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -62,7 +63,12 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Reading headers() opts this layout (and every page under it) into
+  // dynamic rendering, which is required for the per-request CSP nonce set
+  // in proxy.ts to work — see the comment there.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
@@ -77,7 +83,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-dvh">
         {/* Runs before hydration so a returning dark-mode visitor never
             sees a flash of the light theme first. */}
-        <Script id="theme-init" strategy="beforeInteractive">
+        <Script id="theme-init" strategy="beforeInteractive" nonce={nonce}>
           {`try{if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark')}}catch(e){}`}
         </Script>
         {children}

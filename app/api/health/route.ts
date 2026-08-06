@@ -12,9 +12,27 @@ export const dynamic = "force-dynamic";
  * different things: a wrong or quote-wrapped Upstash token passes the presence
  * check and then fails at request time with WRONGPASS buried in the function
  * logs. Deep mode surfaces that from a URL instead.
+ *
+ * Deep mode is gated behind HEALTH_CHECK_SECRET because, ungated, it's a free
+ * "probe my infra" endpoint for anyone: it confirms which env vars are set,
+ * forces a live upstream call to Redis on demand, and echoes raw upstream
+ * error text. None of that is secret-in-the sense of a password, but none of
+ * it needs to be public either. Plain (non-deep) mode stays open — it's just
+ * a boolean "is this up", which is what a public status check should be.
  */
 export async function GET(req: Request) {
-  const deep = new URL(req.url).searchParams.get("deep") === "1";
+  const url = new URL(req.url);
+  const deepRequested = url.searchParams.get("deep") === "1";
+  const secret = process.env.HEALTH_CHECK_SECRET;
+  const deepAuthorized =
+    deepRequested && !!secret && url.searchParams.get("key") === secret;
+
+  if (deepRequested && !deepAuthorized) {
+    return Response.json(
+      { ok: false, error: "deep mode requires a valid key" },
+      { status: 401 },
+    );
+  }
 
   const body: Record<string, unknown> = {
     ok: true,
@@ -23,7 +41,7 @@ export async function GET(req: Request) {
     rateLimiterConfigured: Boolean(process.env.UPSTASH_REDIS_REST_URL),
   };
 
-  if (deep) {
+  if (deepAuthorized) {
     if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
       body.redis = "not configured — both UPSTASH_REDIS_REST_URL and _TOKEN must be set";
     } else {
